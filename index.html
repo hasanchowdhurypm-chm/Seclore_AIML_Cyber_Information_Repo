@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NYC Retirement Security Authority — Audit, Risk & Cybersecurity Portal</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        navy: { DEFAULT:'#003366', light:'#004080', dark:'#002244', faint:'#e8eef5' },
+        gold:  { DEFAULT:'#C8960C', light:'#e0a80d', dark:'#a07a0a', faint:'#fdf6e3' },
+      },
+      fontFamily: { sans: ['Georgia','Times New Roman','serif'] }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; background:#f0f2f5; }
+  .tab-btn { transition: all .2s; }
+  .tab-btn.active { background:#003366; color:#fff; border-bottom:3px solid #C8960C; }
+  .tab-btn:not(.active):hover { background:#e8eef5; }
+  .panel { display:none; }
+  .panel.active { display:block; }
+  /* Circular progress */
+  .circle-wrap { position:relative; width:90px; height:90px; }
+  .circle-wrap svg { transform:rotate(-90deg); }
+  .circle-bg { fill:none; stroke:#e5e7eb; stroke-width:8; }
+  .circle-prog { fill:none; stroke-width:8; stroke-linecap:round; transition:stroke-dashoffset .6s ease; }
+  .circle-label { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; color:#003366; }
+  /* Risk matrix */
+  .risk-cell { cursor:pointer; transition:filter .15s; text-align:center; font-size:11px; font-weight:600; padding:8px 4px; }
+  .risk-cell:hover { filter:brightness(0.85); outline:2px solid #003366; }
+  /* CSS horizontal bars */
+  .hbar { height:10px; border-radius:3px; }
+  /* Severity badges */
+  .badge { display:inline-block; padding:2px 8px; border-radius:3px; font-size:11px; font-weight:700; letter-spacing:.3px; }
+  .badge-critical { background:#fee2e2; color:#991b1b; }
+  .badge-high     { background:#ffedd5; color:#9a3412; }
+  .badge-medium   { background:#fef9c3; color:#854d0e; }
+  .badge-low      { background:#dcfce7; color:#166534; }
+  .badge-pass     { background:#dcfce7; color:#166534; }
+  .badge-fail     { background:#fee2e2; color:#991b1b; }
+  .badge-partial  { background:#fef9c3; color:#854d0e; }
+  .badge-open     { background:#dbeafe; color:#1e40af; }
+  .badge-closed   { background:#dcfce7; color:#166534; }
+  .badge-inprog   { background:#fef9c3; color:#854d0e; }
+  /* Status dot */
+  .dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+  /* Sticky */
+  .sticky-header { position:sticky; top:0; z-index:50; }
+  /* Table */
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th { background:#003366; color:#fff; padding:9px 12px; text-align:left; font-weight:600; font-size:12px; letter-spacing:.4px; }
+  td { padding:8px 12px; border-bottom:1px solid #e5e7eb; color:#374151; }
+  tr:hover td { background:#f8fafc; }
+  /* Print */
+  @media print {
+    .no-print { display:none !important; }
+    body { background:#fff; }
+    .panel { display:block !important; }
+  }
+  /* Timeline */
+  .tl-line { border-left:2px solid #003366; padding-left:16px; position:relative; }
+  .tl-dot { width:12px; height:12px; border-radius:50%; background:#C8960C; border:2px solid #003366;
+            position:absolute; left:-7px; top:4px; }
+  /* scrollbar */
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:#f1f1f1; }
+  ::-webkit-scrollbar-thumb { background:#aaa; border-radius:3px; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ═══════════════════════════════ HEADER ═══════════════════════════════ -->
+<header class="sticky-header bg-navy text-white shadow-lg">
+  <div class="px-6 py-3 flex items-center justify-between">
+    <!-- Logo -->
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 bg-gold rounded flex items-center justify-center flex-shrink-0">
+        <svg viewBox="0 0 40 40" width="32" height="32" fill="none">
+          <circle cx="20" cy="20" r="18" stroke="white" stroke-width="2"/>
+          <path d="M20 8v24M8 20h24" stroke="white" stroke-width="2"/>
+          <path d="M12 12l16 16M28 12L12 28" stroke="white" stroke-width="1.2" opacity=".5"/>
+        </svg>
+      </div>
+      <div>
+        <div class="font-bold text-lg leading-tight tracking-wide">NYC Retirement Security Authority</div>
+        <div class="text-gold text-xs tracking-widest uppercase">Audit, Risk &amp; Cybersecurity Portal</div>
+      </div>
+    </div>
+    <!-- Right -->
+    <div class="flex items-center gap-4 text-sm">
+      <div class="text-gray-300 text-xs hidden md:block">
+        Last Updated: <span class="text-gold font-semibold">May 18, 2026 — 08:42 AM ET</span>
+      </div>
+      <div class="flex items-center gap-2 bg-navy-light border border-white/20 rounded-full px-3 py-1">
+        <div class="w-7 h-7 rounded-full bg-gold flex items-center justify-center text-navy font-bold text-xs">JD</div>
+        <span class="text-sm hidden sm:block">J. Dawson, CISO</span>
+      </div>
+    </div>
+  </div>
+  <!-- Nav tabs -->
+  <div class="border-t border-white/20 bg-navy-dark px-6 flex gap-1 overflow-x-auto no-print">
+    <button onclick="showTab('overview')" id="tab-overview" class="tab-btn active text-sm px-5 py-3 font-semibold whitespace-nowrap">
+      Overview
+    </button>
+    <button onclick="showTab('audit')" id="tab-audit" class="tab-btn text-sm px-5 py-3 font-semibold whitespace-nowrap text-gray-300">
+      Audit Assessment
+    </button>
+    <button onclick="showTab('controls')" id="tab-controls" class="tab-btn text-sm px-5 py-3 font-semibold whitespace-nowrap text-gray-300">
+      Control Measures
+    </button>
+    <button onclick="showTab('cyber')" id="tab-cyber" class="tab-btn text-sm px-5 py-3 font-semibold whitespace-nowrap text-gray-300">
+      Cybersecurity
+    </button>
+    <button onclick="showTab('risk')" id="tab-risk" class="tab-btn text-sm px-5 py-3 font-semibold whitespace-nowrap text-gray-300">
+      Risk Assessment
+    </button>
+  </div>
+</header>
+
+<main class="max-w-screen-xl mx-auto px-4 md:px-6 py-6">
+
+<!-- ═══════════════════════════════ OVERVIEW ═══════════════════════════════ -->
+<div id="panel-overview" class="panel active">
+  <div class="flex items-center justify-between mb-5">
+    <h2 class="text-xl font-bold text-navy border-l-4 border-gold pl-3">Executive Overview</h2>
+    <span class="text-xs text-gray-500">FY 2025–2026 | Q4 Report</span>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+    <div class="bg-white rounded shadow-sm border-t-4 border-green-500 p-4">
+      <div class="text-2xl font-bold text-navy">87%</div>
+      <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Overall Compliance</div>
+      <div class="text-xs text-green-600 mt-1">▲ 3% vs last quarter</div>
+    </div>
+    <div class="bg-white rounded shadow-sm border-t-4 border-orange-400 p-4">
+      <div class="text-2xl font-bold text-navy">14</div>
+      <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Open Findings</div>
+      <div class="text-xs text-orange-500 mt-1">▼ 6 resolved this month</div>
+    </div>
+    <div class="bg-white rounded shadow-sm border-t-4 border-red-500 p-4">
+      <div class="text-2xl font-bold text-navy">3</div>
+      <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Critical Risks</div>
+      <div class="text-xs text-red-600 mt-1">Requires immediate action</div>
+    </div>
+    <div class="bg-white rounded shadow-sm border-t-4 border-navy p-4">
+      <div class="text-2xl font-bold text-navy">142<span class="text-sm text-gray-400">/160</span></div>
+      <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Controls Active</div>
+      <div class="text-xs text-blue-600 mt-1">18 pending deployment</div>
+    </div>
+    <div class="bg-white rounded shadow-sm border-t-4 border-gold p-4">
+      <div class="text-2xl font-bold text-navy">2</div>
+      <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Cyber Incidents YTD</div>
+      <div class="text-xs text-green-600 mt-1">Both contained &lt;4 hrs</div>
+    </div>
+    <div class="bg-white rounded shadow-sm border-t-4 border-purple-500 p-4">
+      <div class="text-2xl font-bold text-navy">Aug 12</div>
+      <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Next Audit Date</div>
+      <div class="text-xs text-gray-500 mt-1">2026 — External Review</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="grid md:grid-cols-2 gap-4 mb-6">
+    <div class="bg-white rounded shadow-sm p-5">
+      <h3 class="font-semibold text-navy text-sm mb-4 uppercase tracking-wide border-b pb-2">Control Status Distribution</h3>
+      <div class="flex items-center gap-4">
+        <canvas id="doughnutChart" width="180" height="180" style="max-width:180px;max-height:180px;"></canvas>
+        <div class="text-sm space-y-2 flex-1">
+          <div class="flex items-center gap-2"><span class="dot bg-green-500"></span><span>Implemented: <strong>142</strong></span></div>
+          <div class="flex items-center gap-2"><span class="dot bg-yellow-400"></span><span>In Progress: <strong>12</strong></span></div>
+          <div class="flex items-center gap-2"><span class="dot bg-red-400"></span><span>Not Started: <strong>6</strong></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="bg-white rounded shadow-sm p-5">
+      <h3 class="font-semibold text-navy text-sm mb-4 uppercase tracking-wide border-b pb-2">Monthly Risk Score Trend (Jan–Jun 2026)</h3>
+      <canvas id="barChart" height="160"></canvas>
+    </div>
+  </div>
+
+  <!-- Recent Activity -->
+  <div class="bg-white rounded shadow-sm p-5">
+    <h3 class="font-semibold text-navy text-sm mb-4 uppercase tracking-wide border-b pb-2">Recent Activity</h3>
+    <div class="space-y-3">
+      <div class="flex items-start gap-3 text-sm">
+        <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+          <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <div class="flex-1"><p><span class="font-semibold">Finding F-2026-031 closed</span> — Privileged access review completed and remediated.</p>
+        <p class="text-gray-400 text-xs mt-0.5">Today, 07:14 AM — M. Torres, IT Security</p></div>
+      </div>
+      <div class="flex items-start gap-3 text-sm">
+        <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+          <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        </div>
+        <div class="flex-1"><p><span class="font-semibold">Q4 Audit report submitted</span> — External audit package sent to NYS Comptroller's office.</p>
+        <p class="text-gray-400 text-xs mt-0.5">Yesterday, 04:58 PM — D. Kim, Compliance</p></div>
+      </div>
+      <div class="flex items-start gap-3 text-sm">
+        <div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+          <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        </div>
+        <div class="flex-1"><p><span class="font-semibold">Threat alert — Phishing campaign detected</span> — 3 employee accounts targeted; no credentials compromised.</p>
+        <p class="text-gray-400 text-xs mt-0.5">May 16, 2026 — SOC Team</p></div>
+      </div>
+      <div class="flex items-start gap-3 text-sm">
+        <div class="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+          <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div class="flex-1"><p><span class="font-semibold">Control CTL-NET-07 testing scheduled</span> — Network segmentation validation set for June 3, 2026.</p>
+        <p class="text-gray-400 text-xs mt-0.5">May 15, 2026 — R. Patel, Network Security</p></div>
+      </div>
+      <div class="flex items-start gap-3 text-sm">
+        <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+          <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        </div>
+        <div class="flex-1"><p><span class="font-semibold">Risk Register updated</span> — Third-party vendor risk re-assessed; rating reduced from High to Medium.</p>
+        <p class="text-gray-400 text-xs mt-0.5">May 14, 2026 — A. Washington, Risk Officer</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ AUDIT ASSESSMENT ═══════════════════════════════ -->
+<div id="panel-audit" class="panel">
+  <div class="flex flex-wrap items-center justify-between mb-5 gap-3">
+    <h2 class="text-xl font-bold text-navy border-l-4 border-gold pl-3">Audit Assessment</h2>
+    <button onclick="alert('Export triggered — PDF generation initiated.')" class="no-print bg-navy text-white text-sm px-4 py-2 rounded flex items-center gap-2 hover:bg-navy-light">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+      Export PDF
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-white rounded shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center no-print">
+    <div class="flex items-center gap-2 text-sm">
+      <label class="text-gray-600 font-semibold">Fiscal Year:</label>
+      <select class="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-navy">
+        <option>2025–2026</option><option>2024–2025</option><option>2023–2024</option>
+      </select>
+    </div>
+    <div class="flex items-center gap-2 text-sm">
+      <label class="text-gray-600 font-semibold">Category:</label>
+      <select class="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-navy">
+        <option>All Categories</option>
+        <option>IT General Controls</option><option>Access Management</option>
+        <option>Data Governance</option><option>Vendor Management</option>
+        <option>Business Continuity</option>
+      </select>
+    </div>
+    <div class="flex items-center gap-2 text-sm">
+      <label class="text-gray-600 font-semibold">Status:</label>
+      <select class="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-navy">
+        <option>All Statuses</option><option>Open</option><option>Closed</option><option>In Remediation</option>
+      </select>
+    </div>
+    <button class="bg-navy text-white text-sm px-3 py-1 rounded hover:bg-navy-light">Apply</button>
+  </div>
+
+  <!-- Summary stats -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+    <div class="bg-white rounded shadow-sm p-4 text-center border-b-4 border-navy">
+      <div class="text-2xl font-bold text-navy">47</div>
+      <div class="text-xs text-gray-500 uppercase tracking-wide mt-1">Total Findings</div>
+    </div>
+    <div class="bg-white rounded shadow-sm p-4 text-center border-b-4 border-blue-500">
+      <div class="text-2xl font-bold text-blue-600">14</div>
+      <div class="text-xs text-gray-500 uppercase tracking-wide mt-1">Open</div>
+    </div>
+    <div class="bg-white rounded shadow-sm p-4 text-center border-b-4 border-green-500">
+      <div class="text-2xl font-bold text-green-600">28</div>
+      <div class="text-xs text-gray-500 uppercase tracking-wide mt-1">Closed</div>
+    </div>
+    <div class="bg-white rounded shadow-sm p-4 text-center border-b-4 border-yellow-500">
+      <div class="text-2xl font-bold text-yellow-600">5</div>
+      <div class="text-xs text-gray-500 uppercase tracking-wide mt-1">In Remediation</div>
+    </div>
+  </div>
+
+  <!-- Findings table -->
+  <div class="bg-white rounded shadow-sm overflow-x-auto">
+    <table>
+      <thead>
+        <tr>
+          <th>Finding ID</th><th>Category</th><th>Description</th>
+          <th>Severity</th><th>Status</th><th>Due Date</th><th>Owner</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">F-2026-001</td>
+          <td>IT General Controls</td>
+          <td>Patch management SLAs exceeded for 23 servers; critical patches &gt;30 days overdue</td>
+          <td><span class="badge badge-critical">Critical</span></td>
+          <td><span class="badge badge-open">Open</span></td>
+          <td class="text-red-600 font-semibold">May 30, 2026</td>
+          <td>R. Okafor</td>
+        </tr>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">F-2026-007</td>
+          <td>Access Management</td>
+          <td>Orphaned privileged accounts identified in Active Directory — 41 accounts without active owners</td>
+          <td><span class="badge badge-high">High</span></td>
+          <td><span class="badge badge-inprog">In Remediation</span></td>
+          <td>Jun 15, 2026</td>
+          <td>M. Torres</td>
+        </tr>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">F-2026-012</td>
+          <td>Data Governance</td>
+          <td>Personally Identifiable Information (PII) discovered in unencrypted test environments</td>
+          <td><span class="badge badge-critical">Critical</span></td>
+          <td><span class="badge badge-open">Open</span></td>
+          <td class="text-red-600 font-semibold">Jun 1, 2026</td>
+          <td>S. Chen</td>
+        </tr>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">F-2026-018</td>
+          <td>Segregation of Duties</td>
+          <td>Two staff members hold conflicting roles allowing unilateral transaction approval up to $500K</td>
+          <td><span class="badge badge-high">High</span></td>
+          <td><span class="badge badge-open">Open</span></td>
+          <td>Jul 1, 2026</td>
+          <td>D. Kim</td>
+        </tr>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">F-2026-023</td>
+          <td>Vendor Management</td>
+          <td>Third-party SaaS provider contract lacks required security addendum and SOC 2 attestation</td>
+          <td><span class="badge badge-medium">Medium</span></td>
+          <td><span class="badge badge-inprog">In Remediation</span></td>
+          <td>Jul 15, 2026</td>
+          <td>A. Washington</td>
+        </tr>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">F-2026-029</td>
+          <td>Business Continuity</td>
+          <td>Disaster Recovery Plan not tested in 18 months; RTO/RPO targets unvalidated</td>
+          <td><span class="badge badge-high">High</span></td>
+          <td><span class="badge badge-open">Open</span></td>
+          <td>Aug 1, 2026</td>
+          <td>L. Ramirez</td>
+        </tr>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">F-2025-041</td>
+          <td>Change Management</td>
+          <td>Emergency change tickets processed without required post-implementation review documentation</td>
+          <td><span class="badge badge-medium">Medium</span></td>
+          <td><span class="badge badge-closed">Closed</span></td>
+          <td>Mar 31, 2026</td>
+          <td>T. Brooks</td>
+        </tr>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">F-2025-047</td>
+          <td>Physical Security</td>
+          <td>Badge access logs for Tier-3 data center not reviewed monthly per policy requirements</td>
+          <td><span class="badge badge-low">Low</span></td>
+          <td><span class="badge badge-closed">Closed</span></td>
+          <td>Apr 15, 2026</td>
+          <td>J. Morales</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ CONTROL MEASURES ═══════════════════════════════ -->
+<div id="panel-controls" class="panel">
+  <div class="flex flex-wrap items-center justify-between mb-5 gap-3">
+    <h2 class="text-xl font-bold text-navy border-l-4 border-gold pl-3">Control Measures Dashboard</h2>
+    <button onclick="alert('Generating control report...')" class="no-print bg-navy text-white text-sm px-4 py-2 rounded flex items-center gap-2 hover:bg-navy-light">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+      Download Report
+    </button>
+  </div>
+
+  <!-- Domain cards 2x2 -->
+  <div class="grid md:grid-cols-2 gap-4 mb-6">
+    <!-- Access Control -->
+    <div class="bg-white rounded shadow-sm p-5">
+      <div class="flex items-center gap-4 mb-4">
+        <div class="circle-wrap flex-shrink-0">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <circle class="circle-bg" cx="45" cy="45" r="38"/>
+            <circle class="circle-prog" cx="45" cy="45" r="38" stroke="#22c55e"
+              stroke-dasharray="238.76" stroke-dashoffset="21.49"/>
+          </svg>
+          <div class="circle-label">91%</div>
+        </div>
+        <div>
+          <div class="font-bold text-navy text-base">Access Control</div>
+          <div class="text-xs text-gray-500 mt-1">Domain Score: <strong class="text-green-600">91 / 100</strong></div>
+          <div class="text-xs text-gray-400">Last reviewed: Apr 28, 2026</div>
+        </div>
+      </div>
+      <div class="space-y-2 text-sm border-t pt-3">
+        <div class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Multi-Factor Authentication enforced for all privileged accounts</div>
+        <div class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Role-Based Access Control (RBAC) implemented across core systems</div>
+        <div class="flex items-center gap-2"><svg class="w-4 h-4 text-yellow-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>Quarterly access recertification — 3 departments overdue</div>
+      </div>
+    </div>
+    <!-- Data Protection -->
+    <div class="bg-white rounded shadow-sm p-5">
+      <div class="flex items-center gap-4 mb-4">
+        <div class="circle-wrap flex-shrink-0">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <circle class="circle-bg" cx="45" cy="45" r="38"/>
+            <circle class="circle-prog" cx="45" cy="45" r="38" stroke="#f59e0b"
+              stroke-dasharray="238.76" stroke-dashoffset="52.53"/>
+          </svg>
+          <div class="circle-label">78%</div>
+        </div>
+        <div>
+          <div class="font-bold text-navy text-base">Data Protection</div>
+          <div class="text-xs text-gray-500 mt-1">Domain Score: <strong class="text-yellow-600">78 / 100</strong></div>
+          <div class="text-xs text-gray-400">Last reviewed: Apr 10, 2026</div>
+        </div>
+      </div>
+      <div class="space-y-2 text-sm border-t pt-3">
+        <div class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>AES-256 encryption at rest for all pension member data</div>
+        <div class="flex items-center gap-2"><svg class="w-4 h-4 text-yellow-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>DLP policies not yet applied to email attachments</div>
+        <div class="flex items-center gap-2"><svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>Test environment PII masking — remediation in progress (F-2026-012)</div>
+      </div>
+    </div>
+    <!-- Network Security -->
+    <div class="bg-white rounded shadow-sm p-5">
+      <div class="flex items-center gap-4 mb-4">
+        <div class="circle-wrap flex-shrink-0">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <circle class="circle-bg" cx="45" cy="45" r="38"/>
+            <circle class="circle-prog" cx="45" cy="45" r="38" stroke="#3b82f6"
+              stroke-dasharray="238.76" stroke-dashoffset="35.81"/>
+          </svg>
+          <div class="circle-label">85%</div>
+        </div>
+        <div>
+          <div class="font-bold text-navy text-base">Network Security</div>
+          <div class="text-xs text-gray-500 mt-1">Domain Score: <strong class="text-blue-600">85 / 100</strong></div>
+          <div class="text-xs text-gray-400">Last reviewed: May 2, 2026</div>
+        </div>
+      </div>
+      <div class="space-y-2 text-sm border-t pt-3">
+        <div class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Next-gen firewall rules reviewed and updated quarterly</div>
+        <div class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Network segmentation between DMZ and internal systems validated</div>
+        <div class="flex items-center gap-2"><svg class="w-4 h-4 text-yellow-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>VPN split-tunneling policy review pending approval</div>
+      </div>
+    </div>
+    <!-- Incident Response -->
+    <div class="bg-white rounded shadow-sm p-5">
+      <div class="flex items-center gap-4 mb-4">
+        <div class="circle-wrap flex-shrink-0">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <circle class="circle-bg" cx="45" cy="45" r="38"/>
+            <circle class="circle-prog" cx="45" cy="45" r="38" stroke="#ef4444"
+              stroke-dasharray="238.76" stroke-dashoffset="71.63"/>
+          </svg>
+          <div class="circle-label">70%</div>
+        </div>
+        <div>
+          <div class="font-bold text-navy text-base">Incident Response</div>
+          <div class="text-xs text-gray-500 mt-1">Domain Score: <strong class="text-red-600">70 / 100</strong></div>
+          <div class="text-xs text-gray-400">Last reviewed: Mar 18, 2026</div>
+        </div>
+      </div>
+      <div class="space-y-2 text-sm border-t pt-3">
+        <div class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>IR Plan documented and approved by Executive Leadership</div>
+        <div class="flex items-center gap-2"><svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>Tabletop exercise not conducted — last held Feb 2025</div>
+        <div class="flex items-center gap-2"><svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>Forensic tooling not updated to support cloud environments</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Control Testing Schedule -->
+  <div class="bg-white rounded shadow-sm overflow-x-auto">
+    <div class="px-5 py-3 border-b">
+      <h3 class="font-semibold text-navy text-sm uppercase tracking-wide">Control Testing Schedule — FY 2026</h3>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Control ID</th><th>Control Name</th><th>Domain</th><th>Last Tested</th><th>Next Test</th><th>Result</th><th>Tester</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="font-mono text-xs text-navy font-bold">CTL-ACC-01</td><td>MFA Enforcement Verification</td><td>Access Control</td><td>Mar 15, 2026</td><td>Jun 15, 2026</td><td><span class="badge badge-pass">Pass</span></td><td>M. Torres</td></tr>
+        <tr><td class="font-mono text-xs text-navy font-bold">CTL-ACC-04</td><td>Privileged Account Review</td><td>Access Control</td><td>Jan 20, 2026</td><td>Jul 20, 2026</td><td><span class="badge badge-fail">Fail</span></td><td>M. Torres</td></tr>
+        <tr><td class="font-mono text-xs text-navy font-bold">CTL-DAT-02</td><td>Encryption Key Rotation</td><td>Data Protection</td><td>Apr 1, 2026</td><td>Jul 1, 2026</td><td><span class="badge badge-pass">Pass</span></td><td>S. Chen</td></tr>
+        <tr><td class="font-mono text-xs text-navy font-bold">CTL-NET-07</td><td>Network Segmentation Validation</td><td>Network Security</td><td>Feb 10, 2026</td><td>Jun 3, 2026</td><td><span class="badge badge-pass">Pass</span></td><td>R. Patel</td></tr>
+        <tr><td class="font-mono text-xs text-navy font-bold">CTL-IR-03</td><td>Incident Response Tabletop</td><td>Incident Response</td><td>Feb 14, 2025</td><td><span class="text-red-600 font-semibold">Overdue</span></td><td><span class="badge badge-fail">Not Conducted</span></td><td>J. Dawson</td></tr>
+        <tr><td class="font-mono text-xs text-navy font-bold">CTL-DAT-08</td><td>Backup Restoration Test</td><td>Data Protection</td><td>Apr 22, 2026</td><td>Jul 22, 2026</td><td><span class="badge badge-partial">Partial</span></td><td>L. Ramirez</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ CYBERSECURITY ═══════════════════════════════ -->
+<div id="panel-cyber" class="panel">
+  <div class="mb-5">
+    <h2 class="text-xl font-bold text-navy border-l-4 border-gold pl-3">Cybersecurity &amp; Information Security</h2>
+    <p class="text-sm text-gray-500 mt-1 ml-4">NIST CSF-aligned checkpoint monitoring | SOC reporting period: FY 2025–2026</p>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-4 mb-4">
+    <!-- Threat Intelligence -->
+    <div class="space-y-4">
+      <div class="bg-white rounded shadow-sm p-5">
+        <h3 class="font-semibold text-navy text-sm uppercase tracking-wide border-b pb-2 mb-3">Threat Intelligence Feed</h3>
+        <div class="space-y-3">
+          <div class="flex items-start gap-3 text-sm">
+            <span class="badge badge-critical flex-shrink-0 mt-0.5">Critical</span>
+            <div><div class="font-semibold">Ransomware Campaign — LockBit 4.0 variant</div><div class="text-xs text-gray-400">Source: CISA Advisory AA26-118A | Detected: May 17, 2026</div></div>
+          </div>
+          <div class="flex items-start gap-3 text-sm">
+            <span class="badge badge-high flex-shrink-0 mt-0.5">High</span>
+            <div><div class="font-semibold">Spear-phishing targeting pension administrators</div><div class="text-xs text-gray-400">Source: FS-ISAC TLP:AMBER | Detected: May 15, 2026</div></div>
+          </div>
+          <div class="flex items-start gap-3 text-sm">
+            <span class="badge badge-high flex-shrink-0 mt-0.5">High</span>
+            <div><div class="font-semibold">CVE-2026-1337 — Citrix Gateway RCE</div><div class="text-xs text-gray-400">Source: NVD / Vendor Advisory | Detected: May 10, 2026</div></div>
+          </div>
+          <div class="flex items-start gap-3 text-sm">
+            <span class="badge badge-medium flex-shrink-0 mt-0.5">Medium</span>
+            <div><div class="font-semibold">Credential stuffing targeting member portals</div><div class="text-xs text-gray-400">Source: FBI Flash MC-000210-MW | Detected: May 6, 2026</div></div>
+          </div>
+          <div class="flex items-start gap-3 text-sm">
+            <span class="badge badge-low flex-shrink-0 mt-0.5">Low</span>
+            <div><div class="font-semibold">DNS hijacking attempts — public-facing domains</div><div class="text-xs text-gray-400">Source: Internal SIEM Alert | Detected: Apr 29, 2026</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vulnerability Summary -->
+      <div class="bg-white rounded shadow-sm p-5">
+        <h3 class="font-semibold text-navy text-sm uppercase tracking-wide border-b pb-2 mb-3">Vulnerability Summary — May 2026 Scan</h3>
+        <div class="space-y-3 text-sm">
+          <div>
+            <div class="flex justify-between mb-1"><span class="font-semibold text-red-700">Critical</span><span class="text-gray-500">4 findings</span></div>
+            <div class="bg-gray-100 rounded overflow-hidden"><div class="hbar bg-red-500" style="width:80%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between mb-1"><span class="font-semibold text-orange-700">High</span><span class="text-gray-500">11 findings</span></div>
+            <div class="bg-gray-100 rounded overflow-hidden"><div class="hbar bg-orange-400" style="width:100%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between mb-1"><span class="font-semibold text-yellow-700">Medium</span><span class="text-gray-500">27 findings</span></div>
+            <div class="bg-gray-100 rounded overflow-hidden"><div class="hbar bg-yellow-400" style="width:100%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between mb-1"><span class="font-semibold text-green-700">Low</span><span class="text-gray-500">38 findings</span></div>
+            <div class="bg-gray-100 rounded overflow-hidden"><div class="hbar bg-green-400" style="width:100%"></div></div>
+          </div>
+          <div class="text-xs text-gray-400 pt-1">Scan conducted by Qualys — May 12, 2026 | 1,247 assets scanned</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NIST CSF Checkpoints -->
+    <div class="bg-white rounded shadow-sm p-5">
+      <h3 class="font-semibold text-navy text-sm uppercase tracking-wide border-b pb-2 mb-3">Security Checkpoints — NIST CSF Alignment</h3>
+      <div class="space-y-2 text-sm">
+        <div class="text-xs font-bold text-navy uppercase tracking-wider mb-1 pt-1">IDENTIFY</div>
+        <div class="flex items-center justify-between py-1 border-b"><span>Asset Inventory (ID.AM-1)</span><div class="flex items-center gap-2"><span class="badge badge-pass">Pass</span><span class="text-xs text-gray-400">Apr 30</span></div></div>
+        <div class="flex items-center justify-between py-1 border-b"><span>Risk Assessment Process (ID.RA-3)</span><div class="flex items-center gap-2"><span class="badge badge-partial">Partial</span><span class="text-xs text-gray-400">Mar 15</span></div></div>
+
+        <div class="text-xs font-bold text-navy uppercase tracking-wider mb-1 pt-2">PROTECT</div>
+        <div class="flex items-center justify-between py-1 border-b"><span>Identity &amp; Access Management (PR.AC-1)</span><div class="flex items-center gap-2"><span class="badge badge-pass">Pass</span><span class="text-xs text-gray-400">May 1</span></div></div>
+        <div class="flex items-center justify-between py-1 border-b"><span>Data Security — Encryption (PR.DS-2)</span><div class="flex items-center gap-2"><span class="badge badge-pass">Pass</span><span class="text-xs text-gray-400">Apr 1</span></div></div>
+        <div class="flex items-center justify-between py-1 border-b"><span>Protective Technology — DLP (PR.PT-3)</span><div class="flex items-center gap-2"><span class="badge badge-fail">Fail</span><span class="text-xs text-gray-400">Feb 20</span></div></div>
+        <div class="flex items-center justify-between py-1 border-b"><span>Awareness &amp; Training (PR.AT-1)</span><div class="flex items-center gap-2"><span class="badge badge-pass">Pass</span><span class="text-xs text-gray-400">May 5</span></div></div>
+
+        <div class="text-xs font-bold text-navy uppercase tracking-wider mb-1 pt-2">DETECT</div>
+        <div class="flex items-center justify-between py-1 border-b"><span>Anomalies &amp; Events — SIEM (DE.AE-2)</span><div class="flex items-center gap-2"><span class="badge badge-pass">Pass</span><span class="text-xs text-gray-400">May 10</span></div></div>
+        <div class="flex items-center justify-between py-1 border-b"><span>Continuous Monitoring (DE.CM-4)</span><div class="flex items-center gap-2"><span class="badge badge-partial">Partial</span><span class="text-xs text-gray-400">Apr 12</span></div></div>
+
+        <div class="text-xs font-bold text-navy uppercase tracking-wider mb-1 pt-2">RESPOND</div>
+        <div class="flex items-center justify-between py-1 border-b"><span>Response Planning (RS.RP-1)</span><div class="flex items-center gap-2"><span class="badge badge-pass">Pass</span><span class="text-xs text-gray-400">Jan 30</span></div></div>
+        <div class="flex items-center justify-between py-1 border-b"><span>IR Tabletop Exercise (RS.CO-3)</span><div class="flex items-center gap-2"><span class="badge badge-fail">Fail</span><span class="text-xs text-gray-400">Feb 2025</span></div></div>
+
+        <div class="text-xs font-bold text-navy uppercase tracking-wider mb-1 pt-2">RECOVER</div>
+        <div class="flex items-center justify-between py-1"><span>Recovery Planning — DR Test (RC.RP-1)</span><div class="flex items-center gap-2"><span class="badge badge-partial">Partial</span><span class="text-xs text-gray-400">Apr 22</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Incident Timeline -->
+  <div class="bg-white rounded shadow-sm p-5">
+    <h3 class="font-semibold text-navy text-sm uppercase tracking-wide border-b pb-3 mb-4">Security Incident Timeline — FY 2025–2026</h3>
+    <div class="space-y-6">
+      <div class="tl-line">
+        <div class="tl-dot"></div>
+        <div class="text-sm"><div class="font-semibold text-navy">Phishing Attack — Member Portal Impersonation</div>
+        <div class="text-xs text-gray-400 mb-1">May 16, 2026 | Severity: High | Status: <span class="text-green-600 font-semibold">Contained</span></div>
+        <p class="text-gray-600">3 employees received spoofed emails mimicking member portal login. Credentials not captured; MFA prevented access. Emails blocked at gateway. Awareness alert issued org-wide.</p></div>
+      </div>
+      <div class="tl-line">
+        <div class="tl-dot"></div>
+        <div class="text-sm"><div class="font-semibold text-navy">Unauthorized API Access Attempt</div>
+        <div class="text-xs text-gray-400 mb-1">Mar 4, 2026 | Severity: Medium | Status: <span class="text-green-600 font-semibold">Resolved</span></div>
+        <p class="text-gray-600">SIEM detected 2,400 failed API authentication attempts from 14 IP addresses. Rate limiting and IP block applied. No data accessed. Source attributed to credential stuffing botnet.</p></div>
+      </div>
+      <div class="tl-line">
+        <div class="tl-dot"></div>
+        <div class="text-sm"><div class="font-semibold text-navy">Ransomware Indicator — Endpoint Quarantine</div>
+        <div class="text-xs text-gray-400 mb-1">Nov 19, 2025 | Severity: Critical | Status: <span class="text-green-600 font-semibold">Contained</span></div>
+        <p class="text-gray-600">EDR detected ransomware pre-execution signatures on contractor laptop. Endpoint isolated within 8 minutes. Forensic analysis confirmed no lateral movement. Contractor access revoked pending review.</p></div>
+      </div>
+      <div class="tl-line">
+        <div class="tl-dot"></div>
+        <div class="text-sm"><div class="font-semibold text-navy">Insider Threat — Unauthorized Data Access</div>
+        <div class="text-xs text-gray-400 mb-1">Sep 8, 2025 | Severity: High | Status: <span class="text-green-600 font-semibold">Resolved</span></div>
+        <p class="text-gray-600">DLP alert triggered for bulk export of 1,400 member records by terminated employee whose access was not revoked within SLA. Access removed; records confirmed not exfiltrated externally. HR/Legal notified.</p></div>
+      </div>
+      <div class="tl-line">
+        <div class="tl-dot"></div>
+        <div class="text-sm"><div class="font-semibold text-navy">Web Application Vulnerability Exploited — XSS</div>
+        <div class="text-xs text-gray-400 mb-1">Jul 22, 2025 | Severity: Medium | Status: <span class="text-green-600 font-semibold">Patched</span></div>
+        <p class="text-gray-600">Cross-site scripting vulnerability identified in public-facing document submission form. No PII exposed. Patch deployed same day. WAF rule added as interim control. Pen test findings closure verified.</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ RISK ASSESSMENT ═══════════════════════════════ -->
+<div id="panel-risk" class="panel">
+  <div class="mb-5">
+    <h2 class="text-xl font-bold text-navy border-l-4 border-gold pl-3">Risk Assessment</h2>
+    <p class="text-sm text-gray-500 mt-1 ml-4">Enterprise Risk Register | Reviewed: May 2026 | Framework: ISO 31000 / NIST RMF</p>
+  </div>
+
+  <!-- Risk Matrix -->
+  <div class="bg-white rounded shadow-sm p-5 mb-5">
+    <h3 class="font-semibold text-navy text-sm uppercase tracking-wide border-b pb-2 mb-4">5×5 Risk Matrix — Likelihood vs. Impact</h3>
+    <div class="overflow-x-auto">
+      <div class="min-w-[400px]">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="text-xs font-bold text-gray-500 uppercase w-24 text-right">Likelihood ↑</div>
+          <div class="flex gap-0.5 flex-1">
+            <div class="text-center text-xs text-gray-500 flex-1">1<br>Rare</div>
+            <div class="text-center text-xs text-gray-500 flex-1">2<br>Unlikely</div>
+            <div class="text-center text-xs text-gray-500 flex-1">3<br>Possible</div>
+            <div class="text-center text-xs text-gray-500 flex-1">4<br>Likely</div>
+            <div class="text-center text-xs text-gray-500 flex-1">5<br>Almost<br>Certain</div>
+          </div>
+        </div>
+        <table style="border-collapse:separate;border-spacing:3px;width:100%;">
+          <tbody id="riskMatrix"></tbody>
+        </table>
+        <div class="flex flex-wrap gap-4 mt-3 text-xs">
+          <span><span class="inline-block w-3 h-3 rounded bg-green-400 mr-1"></span>Low (1–4)</span>
+          <span><span class="inline-block w-3 h-3 rounded bg-yellow-400 mr-1"></span>Medium (5–9)</span>
+          <span><span class="inline-block w-3 h-3 rounded bg-orange-400 mr-1"></span>High (10–16)</span>
+          <span><span class="inline-block w-3 h-3 rounded bg-red-500 mr-1"></span>Critical (17–25)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Risk Register -->
+  <div class="bg-white rounded shadow-sm overflow-x-auto mb-5">
+    <div class="px-5 py-3 border-b"><h3 class="font-semibold text-navy text-sm uppercase tracking-wide">Risk Register</h3></div>
+    <table>
+      <thead>
+        <tr><th>Risk ID</th><th>Risk Description</th><th>Category</th><th>Likelihood</th><th>Impact</th><th>Score</th><th>Rating</th><th>Mitigation Strategy</th><th>Owner</th><th>Review</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">RSK-001</td>
+          <td>Ransomware attack disrupts core pension systems and payroll processing</td>
+          <td>Cybersecurity</td>
+          <td class="text-center font-bold">4</td><td class="text-center font-bold">5</td>
+          <td class="text-center font-bold text-red-700">20</td>
+          <td><span class="badge badge-critical">Critical</span></td>
+          <td>EDR, offline backups, IR playbook, tabletop exercises</td>
+          <td>J. Dawson</td><td>Jun 2026</td>
+        </tr>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">RSK-002</td>
+          <td>Insider threat — unauthorized exfiltration of member PII</td>
+          <td>Cybersecurity</td>
+          <td class="text-center font-bold">3</td><td class="text-center font-bold">5</td>
+          <td class="text-center font-bold text-red-700">15</td>
+          <td><span class="badge badge-high">High</span></td>
+          <td>DLP controls, UEBA monitoring, termination workflow automation</td>
+          <td>S. Chen</td><td>Jul 2026</td>
+        </tr>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">RSK-003</td>
+          <td>Core pension administration system failure during benefit payment cycle</td>
+          <td>Operational</td>
+          <td class="text-center font-bold">2</td><td class="text-center font-bold">5</td>
+          <td class="text-center font-bold text-orange-700">10</td>
+          <td><span class="badge badge-high">High</span></td>
+          <td>Redundant infrastructure, DR site, BCP testing quarterly</td>
+          <td>L. Ramirez</td><td>Aug 2026</td>
+        </tr>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">RSK-004</td>
+          <td>Non-compliance with NYS cybersecurity regulations (23 NYCRR 500)</td>
+          <td>Compliance</td>
+          <td class="text-center font-bold">3</td><td class="text-center font-bold">4</td>
+          <td class="text-center font-bold text-orange-700">12</td>
+          <td><span class="badge badge-high">High</span></td>
+          <td>Compliance gap assessment, remediation roadmap, DFS liaison</td>
+          <td>D. Kim</td><td>Jun 2026</td>
+        </tr>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">RSK-005</td>
+          <td>Third-party vendor breach exposing member data via API integration</td>
+          <td>Operational</td>
+          <td class="text-center font-bold">3</td><td class="text-center font-bold">4</td>
+          <td class="text-center font-bold text-orange-700">12</td>
+          <td><span class="badge badge-high">High</span></td>
+          <td>Vendor risk assessments, contractual security requirements, API monitoring</td>
+          <td>A. Washington</td><td>Jul 2026</td>
+        </tr>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">RSK-006</td>
+          <td>Investment portfolio cyber fraud via compromised trading system credentials</td>
+          <td>Financial</td>
+          <td class="text-center font-bold">2</td><td class="text-center font-bold">5</td>
+          <td class="text-center font-bold text-orange-700">10</td>
+          <td><span class="badge badge-high">High</span></td>
+          <td>Out-of-band transaction verification, dual approval workflows</td>
+          <td>T. Brooks</td><td>Sep 2026</td>
+        </tr>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">RSK-007</td>
+          <td>Reputational damage from public disclosure of security incident</td>
+          <td>Reputational</td>
+          <td class="text-center font-bold">2</td><td class="text-center font-bold">4</td>
+          <td class="text-center font-bold text-yellow-700">8</td>
+          <td><span class="badge badge-medium">Medium</span></td>
+          <td>Crisis communications plan, media relations protocol, notification procedures</td>
+          <td>J. Morales</td><td>Oct 2026</td>
+        </tr>
+        <tr>
+          <td class="font-mono text-xs text-navy font-bold">RSK-008</td>
+          <td>Legacy system dependency creating unpatched attack surface</td>
+          <td>Cybersecurity</td>
+          <td class="text-center font-bold">4</td><td class="text-center font-bold">3</td>
+          <td class="text-center font-bold text-orange-700">12</td>
+          <td><span class="badge badge-high">High</span></td>
+          <td>Network isolation, compensating controls, modernization roadmap FY27</td>
+          <td>R. Okafor</td><td>Jun 2026</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Risk Treatment Plan -->
+  <div class="grid md:grid-cols-3 gap-4">
+    <div class="bg-white rounded shadow-sm p-5 border-t-4 border-blue-500">
+      <h3 class="font-semibold text-navy text-sm mb-1">Accept</h3>
+      <div class="text-3xl font-bold text-blue-600 mb-2">1</div>
+      <p class="text-xs text-gray-500 mb-3">Risks accepted within appetite with documented rationale and monitoring</p>
+      <ul class="text-sm space-y-1 text-gray-700">
+        <li class="flex items-center gap-2"><span class="dot bg-yellow-400"></span>RSK-007 — Reputational (Medium)</li>
+      </ul>
+    </div>
+    <div class="bg-white rounded shadow-sm p-5 border-t-4 border-orange-500">
+      <h3 class="font-semibold text-navy text-sm mb-1">Mitigate</h3>
+      <div class="text-3xl font-bold text-orange-600 mb-2">6</div>
+      <p class="text-xs text-gray-500 mb-3">Active remediation underway with assigned owners and target dates</p>
+      <ul class="text-sm space-y-1 text-gray-700">
+        <li class="flex items-center gap-2"><span class="dot bg-red-500"></span>RSK-001 — Ransomware (Critical)</li>
+        <li class="flex items-center gap-2"><span class="dot bg-red-500"></span>RSK-002 — Insider Threat (High)</li>
+        <li class="flex items-center gap-2"><span class="dot bg-orange-400"></span>RSK-003 — System Failure (High)</li>
+        <li class="flex items-center gap-2"><span class="dot bg-orange-400"></span>RSK-004 — Compliance (High)</li>
+        <li class="flex items-center gap-2"><span class="dot bg-orange-400"></span>RSK-005 — Vendor Breach (High)</li>
+        <li class="flex items-center gap-2"><span class="dot bg-orange-400"></span>RSK-008 — Legacy Systems (High)</li>
+      </ul>
+    </div>
+    <div class="bg-white rounded shadow-sm p-5 border-t-4 border-purple-500">
+      <h3 class="font-semibold text-navy text-sm mb-1">Transfer</h3>
+      <div class="text-3xl font-bold text-purple-600 mb-2">1</div>
+      <p class="text-xs text-gray-500 mb-3">Risk transferred to third party via insurance or contract provisions</p>
+      <ul class="text-sm space-y-1 text-gray-700">
+        <li class="flex items-center gap-2"><span class="dot bg-orange-400"></span>RSK-006 — Investment Fraud (High)</li>
+      </ul>
+      <div class="text-xs text-gray-400 mt-2">Cyber insurance policy renewed Apr 2026 — $50M coverage</div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- Footer -->
+<footer class="mt-8 bg-navy text-gray-300 text-xs py-4 px-6 flex flex-wrap justify-between gap-2">
+  <div>© 2026 NYC Retirement Security Authority — Audit, Risk &amp; Cybersecurity Division</div>
+  <div class="flex gap-4">
+    <span>Classification: <strong class="text-gold">CONFIDENTIAL — INTERNAL USE ONLY</strong></span>
+    <span>Portal v2.4.1</span>
+  </div>
+</footer>
+
+<script>
+// ── Tab switching ──
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.classList.add('text-gray-300');
+  });
+  document.getElementById('panel-' + name).classList.add('active');
+  const btn = document.getElementById('tab-' + name);
+  btn.classList.add('active');
+  btn.classList.remove('text-gray-300');
+  if (name === 'overview') initCharts();
+}
+
+// ── Charts ──
+let chartsInited = false;
+function initCharts() {
+  if (chartsInited) return;
+  chartsInited = true;
+  new Chart(document.getElementById('doughnutChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Implemented', 'In Progress', 'Not Started'],
+      datasets: [{ data: [142, 12, 6],
+        backgroundColor: ['#22c55e','#facc15','#f87171'],
+        borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: { responsive: false, plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}` } } } }
+  });
+  new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Jan','Feb','Mar','Apr','May','Jun'],
+      datasets: [{ label: 'Risk Score', data: [72,68,74,71,69,65],
+        backgroundColor: '#003366', borderRadius: 4,
+        hoverBackgroundColor: '#C8960C' }]
+    },
+    options: { responsive: true, scales: {
+      y: { min: 55, max: 80, ticks: { font: { size: 11 } },
+           title: { display: true, text: 'Score', font: { size: 11 } } },
+      x: { ticks: { font: { size: 11 } } }
+    }, plugins: { legend: { display: false } } }
+  });
+}
+
+// ── Risk Matrix ──
+const riskLabels = ['5 — Almost Certain','4 — Likely','3 — Possible','2 — Unlikely','1 — Rare'];
+const riskColors = s => {
+  if (s >= 17) return { bg:'#ef4444', text:'#fff' };
+  if (s >= 10) return { bg:'#f97316', text:'#fff' };
+  if (s >= 5)  return { bg:'#facc15', text:'#1f2937' };
+  return { bg:'#4ade80', text:'#1f2937' };
+};
+const matrix = document.getElementById('riskMatrix');
+// Risks to highlight in matrix
+const highlighted = { '4-5':['RSK-001'],'3-5':['RSK-002'],'2-5':['RSK-003','RSK-006'],
+  '3-4':['RSK-004','RSK-005'],'4-3':['RSK-008'],'2-4':['RSK-007'] };
+for (let l = 5; l >= 1; l--) {
+  const tr = document.createElement('tr');
+  const label = document.createElement('td');
+  label.style.cssText = 'font-size:11px;color:#6b7280;text-align:right;padding-right:8px;white-space:nowrap;width:120px;vertical-align:middle;';
+  label.textContent = riskLabels[5 - l];
+  tr.appendChild(label);
+  for (let i = 1; i <= 5; i++) {
+    const score = l * i;
+    const { bg, text } = riskColors(score);
+    const key = `${l}-${i}`;
+    const risks = highlighted[key] || [];
+    const td = document.createElement('td');
+    td.className = 'risk-cell';
+    td.style.cssText = `background:${bg};color:${text};border-radius:4px;font-size:11px;`;
+    td.innerHTML = `<div style="font-size:13px;font-weight:700;">${score}</div>${risks.map(r=>`<div style="font-size:9px;background:rgba(0,0,0,.2);border-radius:2px;padding:1px 3px;margin-top:2px;">${r}</div>`).join('')}`;
+    td.title = `Likelihood ${l} × Impact ${i} = ${score}`;
+    tr.appendChild(td);
+  }
+  matrix.appendChild(tr);
+}
+// Impact axis label row
+const axisRow = document.createElement('tr');
+const spacer = document.createElement('td');
+spacer.style.width = '120px';
+axisRow.appendChild(spacer);
+['1\nNegligible','2\nMinor','3\nModerate','4\nMajor','5\nCatastrophic'].forEach(t => {
+  const td = document.createElement('td');
+  td.style.cssText = 'font-size:10px;color:#6b7280;text-align:center;padding-top:6px;white-space:pre;';
+  td.textContent = t;
+  axisRow.appendChild(td);
+});
+matrix.appendChild(axisRow);
+
+// Init charts on load (overview is default tab)
+initCharts();
+</script>
+</body>
+</html>
